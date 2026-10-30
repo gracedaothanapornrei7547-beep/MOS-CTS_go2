@@ -5,7 +5,7 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 class PPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 300000
-    save_interval = 500
+    save_interval = 200
     experiment_name = "go2_rough" 
     
     policy = RslRlPpoActorCriticCfg(
@@ -74,7 +74,7 @@ class MoECTSRunnerCfg(RslRlOnPolicyRunnerCfg):
     class_name = "OnPolicyRunnerCTS"
     num_steps_per_env = 24
     max_iterations = 300000
-    save_interval = 500
+    save_interval = 200
     policy = RslRlMoeCtsActorCriticCfg()
     algorithm = RslRlMoeCtsAlgorithmCfg()
 
@@ -84,3 +84,48 @@ class MoECTSCatELURunnerCfg(MoECTSRunnerCfg):
     def __post_init__(self):
         super().__post_init__()
         self.policy.activation = 'cat_elu'
+
+
+@configclass
+class MoECTSSmoothRunnerCfg(MoECTSRunnerCfg):
+    """Runner configuration for 1000-iteration smoothness fine-tuning."""
+    experiment_name = "go2_moe_cts"
+    max_iterations = 1000
+    save_interval = 100
+
+    def __post_init__(self):
+        super().__post_init__()
+        # 温和微调学习率：降为 2e-4，防止遗忘 15cm 爬楼特征，专注平滑步态
+        self.algorithm.learning_rate = 2e-4
+        self.algorithm.student_encoder_learning_rate = 2e-4
+
+
+@configclass
+class MoECTSFlatSmoothRunnerCfg(MoECTSRunnerCfg):
+    """Runner configuration for 3000-iteration (~80 min) official-recipe airborne & de-lag fine-tuning."""
+    experiment_name = "go2_moe_cts"
+    max_iterations = 3000
+    save_interval = 200
+
+    def __post_init__(self):
+        super().__post_init__()
+        # 平稳结晶纯平地官方标准步态：1.5e-4
+        self.algorithm.learning_rate = 1.5e-4
+        self.algorithm.student_encoder_learning_rate = 1.5e-4
+
+
+@configclass
+class MoECTSMildTerrainRunnerCfg(MoECTSRunnerCfg):
+    """Runner configuration for official Scheme A mild-terrain knee-lift fine-tuning."""
+    experiment_name = "go2_moe_cts"
+    max_iterations = 1500
+    save_interval = 200
+
+    def __post_init__(self):
+        super().__post_init__()
+        # 温和微调学习率：1.5e-4，平衡 3~8cm 物理台阶适应与步态平稳性
+        self.algorithm.learning_rate = 1.5e-4
+        self.algorithm.student_encoder_learning_rate = 1.5e-4
+
+
+

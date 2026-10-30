@@ -1,13 +1,13 @@
 policy_path: "{ROOT_DIR}/deploy/pre_train/go2/go2_moe_cts_176k_0.6984.pt" # policy.pt exported by running scripts/rsl_rl/play.py
 
-xml_path: "{ROOT_DIR}/resources/go2/stairs_and_slope.xml"
+xml_path: "{ROOT_DIR}/resources/go2/flat.xml"
 
-render_fps: 300
-video_fps: 60
-save_video: false
+render_fps: 60
+video_fps: 30
+save_video: true
 
 # Total simulation time
-simulation_duration: 60000000.0
+simulation_duration: 20.0
 # Simulation time step
 simulation_dt: 0.002
 # Controller update frequency (meets the requirement of simulation_dt * controll_decimation=0.02; 50Hz)

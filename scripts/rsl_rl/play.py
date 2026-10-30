@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # Copyright (c) 2024-2025 Ziqi Fan
 # SPDX-License-Identifier: Apache-2.0
 
@@ -44,8 +46,10 @@ parser.add_argument(
     help="Use the pre-trained checkpoint from Nucleus.",
 )
 parser.add_argument("--real-time", action="store_true", default=False, help="Run in real-time, if possible.")
-parser.add_argument("--keyboard", action="store_true", default=False, help="Whether to use keyboard.")
 parser.add_argument("--fix_commands", action="store_true", default=False, help="Fix the velocity commands.")
+parser.add_argument("--fixed_lin_x", type=float, default=None, help="Fixed forward velocity (m/s).")
+parser.add_argument("--start_delay_s", type=float, default=0.3, help="Initial stationary delay in seconds before accelerating.")
+parser.add_argument("--max_accel_x", type=float, default=2.0, help="Maximum forward acceleration (m/s^2).")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -79,7 +83,9 @@ from isaaclab.envs import (
     ManagerBasedRLEnvCfg,
     multi_agent_to_single_agent,
 )
-from isaaclab.envs.mdp import UniformVelocityCommandCfg
+from collections.abc import Sequence
+from isaaclab.envs.mdp import UniformVelocityCommand, UniformVelocityCommandCfg
+from isaaclab.utils import configclass
 from isaaclab.utils.assets import retrieve_file_path
 from isaaclab.utils.dict import print_dict
 # from isaaclab.utils.pretrained_checkpoint import get_published_pretrained_checkpoint
@@ -88,30 +94,86 @@ from isaaclab_tasks.utils import get_checkpoint_path
 from isaaclab_tasks.utils.hydra import hydra_task_config
 import robot_lab.tasks  # noqa: F401
 
-def fix_commands(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg):
-    """Fix commanded velocity to a constant target.
 
-    Prefer locking the command generator to keep policy observations consistent
-    with environment internal command state.
-    """
-    fixed_lin_x, fixed_lin_y, fixed_ang_z = 1.0, 0.0, 0.0
+class SmoothVelocityCommand(UniformVelocityCommand):
+    """Command generator that smoothly ramps up velocity after an initial settling delay."""
+
+    cfg: SmoothVelocityCommandCfg
+
+    def __init__(self, cfg: SmoothVelocityCommandCfg, env):
+        super().__init__(cfg, env)
+        self.episode_time = torch.zeros(self.num_envs, device=self.device)
+        self.target_lin_x = cfg.target_lin_x
+        self.start_delay_s = cfg.start_delay_s
+        self.max_accel_x = cfg.max_accel_x
+
+    def reset(self, env_ids: Sequence[int] | None = None) -> dict[str, float]:
+        extras = super().reset(env_ids)
+        if env_ids is None:
+            env_ids = slice(None)
+        self.episode_time[env_ids] = 0.0
+        self.vel_command_b[env_ids, 0] = 0.0
+        self.vel_command_b[env_ids, 1] = 0.0
+        self.vel_command_b[env_ids, 2] = 0.0
+        return extras
+
+    def _resample_command(self, env_ids: Sequence[int]):
+        super()._resample_command(env_ids)
+        self.vel_command_b[env_ids, 0] = 0.0
+        self.vel_command_b[env_ids, 1] = 0.0
+        self.vel_command_b[env_ids, 2] = 0.0
+
+    def _update_command(self):
+        super()._update_command()
+        dt = self._env.step_dt
+        self.episode_time += dt
+
+        # Smooth ramp calculation: v_cmd(t) = min(v_target, a_max * max(0, t - t_delay))
+        accel_time = torch.clamp(self.episode_time - self.start_delay_s, min=0.0)
+        target_v = torch.clamp(accel_time * self.max_accel_x, max=self.target_lin_x)
+        self.vel_command_b[:, 0] = target_v
+        self.vel_command_b[:, 1] = 0.0
+        if not self.cfg.heading_command:
+            self.vel_command_b[:, 2] = 0.0
+
+
+@configclass
+class SmoothVelocityCommandCfg(UniformVelocityCommandCfg):
+    class_type: type = SmoothVelocityCommand
+    target_lin_x: float = 1.5
+    start_delay_s: float = 0.3
+    max_accel_x: float = 2.0
+
+
+def fix_commands(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg):
+    """Fix commanded velocity with a smooth acceleration ramp and zero initial touchdown shock."""
+    fixed_lin_x = getattr(args_cli, "fixed_lin_x", None)
+    if fixed_lin_x is None:
+        fixed_lin_x = 0.5 if "FlatDebug" in getattr(args_cli, "task", "") else 1.0
+    start_delay_s = getattr(args_cli, "start_delay_s", 0.3)
+    max_accel_x = getattr(args_cli, "max_accel_x", 2.0)
+    fixed_lin_y = 0.0
 
     base_velocity_cfg = getattr(getattr(env_cfg, "commands", None), "base_velocity", None)
     if base_velocity_cfg is None:
         return
 
-    fixed_cfg = UniformVelocityCommandCfg(
+    fixed_cfg = SmoothVelocityCommandCfg(
         asset_name=getattr(base_velocity_cfg, "asset_name", "robot"),
-        heading_command=False,
+        heading_command=True,
+        heading_control_stiffness=0.8,
         rel_standing_envs=0.0,
-        rel_heading_envs=0.0,
-        resampling_time_range=(5.0, 5.0),
+        rel_heading_envs=1.0,
+        resampling_time_range=(10000.0, 10000.0),
         ranges=UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(fixed_lin_x, fixed_lin_x),
+            lin_vel_x=(0.0, fixed_lin_x),
             lin_vel_y=(fixed_lin_y, fixed_lin_y),
-            ang_vel_z=(fixed_ang_z, fixed_ang_z),
-            heading=None,
+            ang_vel_z=(-1.0, 1.0),
+            heading=(0.0, 0.0),
         ),
+        target_lin_x=fixed_lin_x,
+        start_delay_s=start_delay_s,
+        max_accel_x=max_accel_x,
         debug_vis=True,
     )
     env_cfg.commands.base_velocity = fixed_cfg
@@ -275,3 +337,5 @@ if __name__ == "__main__":
     main()
     # close sim app
     simulation_app.close()
+    import os
+    os._exit(0)

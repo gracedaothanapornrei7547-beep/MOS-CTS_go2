@@ -53,6 +53,7 @@ class MoECTS:
         symmetry_cfg: dict | None = None,
         # Distributed training parameters
         multi_gpu_cfg: dict | None = None,
+        **kwargs,
     ) -> None:
         assert isinstance(policy, ActorCriticMoECTS), "Policy must be an instance of ActorCriticMoECTS."
         assert not policy.is_recurrent, "Recurrent policies are not supported yet for MoECTS."

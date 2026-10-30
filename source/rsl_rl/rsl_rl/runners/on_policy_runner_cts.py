@@ -260,7 +260,13 @@ class OnPolicyRunnerCTS:
                 print("Sleeping for 1 minute before checking RoboGauge results again...")
                 time.sleep(60)  # wait for 1 minute before checking again
 
-    def load(self, path: str, load_optimizer: bool = True, map_location: str | None = None) -> dict:
+    def load(
+        self,
+        path: str,
+        load_optimizer: bool = True,
+        reset_iteration: bool = False,
+        map_location: str | None = None,
+    ) -> dict:
         loaded_dict = torch.load(path, weights_only=False, map_location=map_location)
         # Load model
         resumed_training = self.alg.policy.load_state_dict(loaded_dict["model_state_dict"])
@@ -277,8 +283,10 @@ class OnPolicyRunnerCTS:
             # RND optimizer if used
             if self.alg_cfg["rnd_cfg"]:
                 self.alg.rnd_optimizer.load_state_dict(loaded_dict["rnd_optimizer_state_dict"])
+        else:
+            print("[INFO] Optimizer states NOT loaded. Initializing clean optimizer for fresh phase.")
         # Load current learning iteration
-        if resumed_training:
+        if resumed_training and not reset_iteration:
             self.current_learning_iteration = loaded_dict["iter"] + 1
             env = getattr(self.env, "unwrapped", self.env)
             if hasattr(env, "common_step_counter"):
@@ -289,6 +297,12 @@ class OnPolicyRunnerCTS:
                     env.restore_training_progress(step_count)
                 else:
                     env.common_step_counter = step_count
+        else:
+            self.current_learning_iteration = 0
+            env = getattr(self.env, "unwrapped", self.env)
+            if hasattr(env, "common_step_counter"):
+                env.common_step_counter = 0
+            print("[INFO] Learning iteration and env step counter reset to 0 for fresh phase.")
         return loaded_dict["infos"]
 
     def get_inference_policy(self, device: str | None = None) -> callable:

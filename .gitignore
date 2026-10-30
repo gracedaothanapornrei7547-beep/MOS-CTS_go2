@@ -84,3 +84,5 @@ logs/
 **/logs/
 outputs/
 .omx/
+tool/
+dashboard_site/

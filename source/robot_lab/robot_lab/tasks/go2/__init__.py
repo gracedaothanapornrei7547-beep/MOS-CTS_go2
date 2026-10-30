@@ -28,6 +28,47 @@ gym.register(
     },
 )
 
+gym.register(
+    id="RobotLab-Go2-Flat-v0",
+    entry_point="robot_lab.tasks.go2.env.go2_env:Go2Env",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.flat_straight_env_cfg:Go2FlatStraightEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{__name__}.rsl_rl_cfg:MoECTSRunnerCfg",
+    },
+)
+
+gym.register(
+    id="RobotLab-Go2-Smooth-v0",
+    entry_point="robot_lab.tasks.go2.env.go2_env:Go2Env",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.smooth_env_cfg:Go2SmoothEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{__name__}.rsl_rl_cfg:MoECTSSmoothRunnerCfg",
+    },
+)
+
+gym.register(
+    id="RobotLab-Go2-Flat-Smooth-v0",
+    entry_point="robot_lab.tasks.go2.env.go2_env:Go2Env",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.flat_smooth_env_cfg:Go2FlatSmoothEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{__name__}.rsl_rl_cfg:MoECTSFlatSmoothRunnerCfg",
+    },
+)
+
+gym.register(
+    id="RobotLab-Go2-Mild-Terrain-v0",
+    entry_point="robot_lab.tasks.go2.env.go2_env:Go2Env",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.mild_terrain_env_cfg:Go2MildTerrainEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{__name__}.rsl_rl_cfg:MoECTSMildTerrainRunnerCfg",
+    },
+)
+
+
 # The blacklist is used to prevent importing configs from sub-packages
 _BLACKLIST_PKGS = ["utils"]
 # Import all configs in this package

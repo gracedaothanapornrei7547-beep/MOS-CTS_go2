@@ -27,3 +27,6 @@ ISAACLAB_ASSETS_METADATA = toml.load(os.path.join(ISAACLAB_ASSETS_EXT_DIR, "conf
 
 # Configure the module-level variables
 __version__ = ISAACLAB_ASSETS_METADATA["package"]["version"]
+
+from .obstacle_dog import OBSTACLE_DOG_CFG
+from .unitree import GO2_CFG_ROBOTLAB, GO2_CFG_UNITREE

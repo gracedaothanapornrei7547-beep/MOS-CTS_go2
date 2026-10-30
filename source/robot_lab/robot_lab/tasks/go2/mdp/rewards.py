@@ -605,3 +605,51 @@ def feet_regulation(
     reward = (feet_xy_vel_w.pow(2).sum(dim=-1) * torch.exp(-feet_height / (0.025 * base_height_target))).sum(dim=-1)
 
     return reward
+
+
+_HIP_INDICES_CACHE = {}
+
+
+def x_command_hip_regular(
+    env: ManagerBasedRLEnv,
+    command_name: str = "base_velocity",
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Penalize hip abduction asymmetry during forward movement (strictly aligned with official go2_rl_gym).
+
+    When running forward, FL and FR hips, and RL and RR hips must mirror each other:
+    FL_hip_joint + FR_hip_joint = 0 (since default FL=+0.1, FR=-0.1)
+    RL_hip_joint + RR_hip_joint = 0 (since default RL=+0.1, RR=-0.1)
+    Any deviation breaks diagonal trot symmetry and causes lateral body twitching.
+
+    动态门控解耦:
+    仅在纯直线巡航状态下激活 (|v_y| < 0.1 且 |w_z| < 0.15)；
+    一旦摇杆给出明显的 v_y 或 w_z 意图，该惩罚瞬时衰减归零，释放左右髋关节自由大角度外展侧蹬与旋转。
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    command = env.command_manager.get_command(command_name)
+
+    cache_key = (asset_cfg.name, env.device)
+    if cache_key not in _HIP_INDICES_CACHE:
+        fl_idx, _ = asset.find_joints("FL_hip_joint")
+        fr_idx, _ = asset.find_joints("FR_hip_joint")
+        rl_idx, _ = asset.find_joints("RL_hip_joint")
+        rr_idx, _ = asset.find_joints("RR_hip_joint")
+        _HIP_INDICES_CACHE[cache_key] = (fl_idx[0], fr_idx[0], rl_idx[0], rr_idx[0])
+
+    fl_i, fr_i, rl_i, rr_i = _HIP_INDICES_CACHE[cache_key]
+    q = asset.data.joint_pos
+
+    # Asymmetry magnitude
+    asymmetry = torch.abs(q[:, fl_i] + q[:, fr_i]) + torch.abs(q[:, rl_i] + q[:, rr_i])
+
+    # 动态门控解耦：仅在纯直线巡航状态下激活 (|v_y| < 0.1 且 |w_z| < 0.15)
+    cmd_vx = torch.abs(command[:, 0])
+    cmd_vy = torch.abs(command[:, 1])
+    cmd_wz = torch.abs(command[:, 2])
+
+    is_straight = (cmd_vy < 0.1) & (cmd_wz < 0.15)
+    cmd_norm = torch.norm(command[:, :3], dim=1) + 1e-5
+    x_ratio = torch.where(is_straight, cmd_vx / cmd_norm, torch.zeros_like(cmd_vx))
+
+    return asymmetry * x_ratio

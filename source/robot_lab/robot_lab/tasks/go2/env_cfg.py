@@ -433,6 +433,14 @@ class RewardsCfg:
             "command_threshold": 0.1,
         },
     )
+    x_command_hip_regular = RewTerm(
+        func=mdp.x_command_hip_regular,
+        weight=-0.0,
+        params={
+            "command_name": "base_velocity",
+            "asset_cfg": SceneEntityCfg("robot"),
+        },
+    )
     
 @configclass
 class TerminationsCfg:
