@@ -24,6 +24,8 @@
 **/output/*
 **/outputs/*
 **/videos/*
+!resources/videos/**
+!resources/videos/*
 **/wandb/*
 **/.neptune/*
 docker/artifacts/

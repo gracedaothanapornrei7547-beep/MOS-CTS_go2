@@ -22,6 +22,18 @@ flowchart TD
 
 ---
 
+## 🎬 真实物理实测演示 (MuJoCo 500 Hz Benchmark Demos)
+
+### 🏆 纯净冠军模型 (24800轮) 稳健攻破 15cm 极限连续台阶 (机身后视追逐视角)
+
+<div align="center">
+  <img src="resources/videos/go2_15cm_stairs_rearview.gif" alt="Go2 Climbing 15cm Stairs (Rear View)" width="85%" />
+  <p><em>🎥 纯净冠军策略（24800轮）在 500 Hz MuJoCo 真实物理引擎下，以 1.2 m/s 冲锋速度连续踏破 5 级 15cm 台阶并稳健登顶 0.75m 高台（机身后视视角）</em></p>
+  <p><b>高清原画视频</b>：<a href="resources/videos/go2_15cm_stairs_rearview.mp4">resources/videos/go2_15cm_stairs_rearview.mp4</a> (1280x720 60FPS H.264)</p>
+</div>
+
+---
+
 ## 一、 📊 核心指标演进全景表 (Benchmark Evolution)
 
 所有测试数据均在 **500 Hz 真实物理 MuJoCo 动力学仿真器** 下由自动化脚本逐帧遥测采集（消除任何人工肉眼观察误差与主观偏差）：
