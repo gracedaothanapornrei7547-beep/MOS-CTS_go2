@@ -18,12 +18,13 @@ from robot_lab.tasks.go2.mdp.terrains import (
 
 
 # ==============================================================================
-# 方案 A：温和混合起伏地形生成器 (30% 平地 + 40% 缓步台阶 + 30% 缓坡/波浪)
+# 方案 A：越野大台阶提膝微调生成器 (30% 平地 + 20% 8~18cm 大台阶 + 20% 缓下台阶 + 30% 缓坡/波浪)
 # 物理强制抬膝核心机制：
-# 阶梯高度精确限制在 3~8cm 黄金区间：
-#   * 若策略贴地拖行（抬腿仅 1~2cm），足端与小腿必猛烈撞击 3~8cm 台阶边缘，触发碰撞重罚；
-#   * 物理障碍直接封死“贴地滑冰”的可行性，倒逼策略在数百轮内自发激发出 8~12cm 的主动大折膝；
-#   * 且台阶坡度温和，不破坏整机的连续 Trot 节奏，兼顾平地超稳巡航。
+# 踏步阶梯高度提升至 8~18cm 黄金区间：
+#   * 若策略前腿抬起不足 15cm，足端必猛烈撞击 8~18cm 台阶立面，触发非预期碰撞重罚 (-1.5)；
+#   * 物理障碍直接封死低抬腿，倒逼网络在数百轮内自发激发出 20cm+ 的主动大折膝提腿；
+#   * 配合 feet_regulation = -0.08 贴地阻尼与 x_command_hip_regular = -0.5 航向对称，
+#     在不破坏平地直行超稳巡航与自转机制的前提下，重新激活 15cm 台阶 0.3 秒内轻盈弹射冲刺能力。
 # ==============================================================================
 MILD_TERRAIN_CFG = Go2TerrainGeneratorCfg(
     size=(8.0, 8.0),
@@ -40,11 +41,11 @@ MILD_TERRAIN_CFG = Go2TerrainGeneratorCfg(
         # 1. 30% 纯平网格面：保持平地优雅稳定 trot 步态基准
         "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=0.30),
         
-        # 2. 20% 缓上台阶：踏步高度 3~8cm，彻底打破贴地拖步
+        # 2. 20% 上台阶：高度恢复至 8~18cm [0.08, 0.18]，物理倒逼前腿主动大折膝提腿 (>20cm)
         "stairs_up": with_slope_threshold(
             terrain_gen.HfInvertedPyramidStairsTerrainCfg(
                 proportion=0.20,
-                step_height_range=(0.03, 0.08),
+                step_height_range=(0.08, 0.18),
                 step_width=0.31,
                 platform_width=3.0,
             ),
@@ -87,15 +88,16 @@ MILD_TERRAIN_CFG = Go2TerrainGeneratorCfg(
 
 @configclass
 class Go2MildTerrainEnvCfg(Go2EnvCfg):
-    """Configuration for official Scheme A mild terrain knee-lift fine-tuning.
+    """Configuration for official Scheme A rough-stairs knee-lift fine-tuning (based on 24800 gold baseline).
 
     核心物理洗步逻辑：
-    1. 切换至温和混合地形：物理倒逼四足折膝 8~12cm，彻底根除贴地拖行（拖步即撞台阶）；
-    2. 下调标称站立高度至 0.33m，高度惩罚设为 -2.0：释放充裕膝关节折叠提腿空间；
-    3. 官方标准直行对称惩罚 x_command_hip_regular = -0.5：杜绝左右髋偏差，航向笔直；
-    4. 强化非预期碰撞惩罚 undesired_contacts (-1.5)：一旦腿骨蹭台阶立刻重罚；
-    5. 强化 CTS 抬腿正则 feet_regulation (-0.06)：足端贴地高速送腿时强力惩罚；
-    6. 弃用有数学作弊漏洞的 feet_air_time（避免网络通过 100% 贴地钻空子避罚）。
+    1. 踏步高度恢复至 8~18cm (stairs_up: [0.08, 0.18])：物理倒逼前腿折膝 >20cm，彻底打破平地拖步；
+    2. 标称站立高度维持 0.33m，高度惩罚设为 -2.0：释放充裕膝关节折叠提腿空间与生物弹性；
+    3. 官方标准直行对称惩罚 x_command_hip_regular = -0.5：杜绝左右髋偏差，航向笔直稳定；
+    4. 强化非预期碰撞惩罚 undesired_contacts (-1.5)：一旦腿骨蹭台阶立面立刻重罚；
+    5. 坚守官方纯净 feet_regulation (-0.08)：严惩原地与前送时足端贴地打滑，自然倒逼轻盈离地小踏步；
+    6. 放宽角速度核宽 std = 0.65，权重 1.5：消除大角速度梯度饱和，维持满舵 1.42 rad/s 敏捷自转；
+    7. 彻底摒弃人工腾空奖与防死锁惩罚，100% 依托多地形物理障碍与纯净阻尼自然涌现。
     """
 
     def __post_init__(self):

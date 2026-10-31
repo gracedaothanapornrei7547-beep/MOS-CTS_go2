@@ -116,14 +116,14 @@ class MoECTSFlatSmoothRunnerCfg(MoECTSRunnerCfg):
 
 @configclass
 class MoECTSMildTerrainRunnerCfg(MoECTSRunnerCfg):
-    """Runner configuration for official Scheme A mild-terrain knee-lift fine-tuning."""
+    """Runner configuration for official Scheme A rough-stairs knee-lift fine-tuning (800 iterations)."""
     experiment_name = "go2_moe_cts"
-    max_iterations = 1500
+    max_iterations = 800
     save_interval = 200
 
     def __post_init__(self):
         super().__post_init__()
-        # 温和微调学习率：1.5e-4，平衡 3~8cm 物理台阶适应与步态平稳性
+        # 温和微调学习率：1.5e-4，平衡 8~18cm 物理大台阶适应与高精度平地/自转稳定性
         self.algorithm.learning_rate = 1.5e-4
         self.algorithm.student_encoder_learning_rate = 1.5e-4
 
