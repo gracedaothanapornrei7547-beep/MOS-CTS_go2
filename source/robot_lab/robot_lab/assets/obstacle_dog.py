@@ -1,10 +1,13 @@
 # Copyright (c) 2024-2026
 # Custom Obstacle Dog Articulation Configuration for Isaac Lab
 
+import os
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import DCMotorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.utils import configclass
+
+_RESOURCES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../resources"))
 
 ##
 # Configuration
@@ -12,7 +15,7 @@ from isaaclab.utils import configclass
 
 OBSTACLE_DOG_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path="/home/rum/obstacle_dog/usd/obstacle_dog.usd",
+        usd_path=os.path.join(_RESOURCES_DIR, "obstacle_dog/usd/obstacle_dog.usd"),
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,

@@ -25,7 +25,10 @@ class CTSPolicyInputs(NamedTuple):
 
 
 def load_config(config_name: str):
-    with (CONFIG_DIR / config_name).open("r", encoding="utf-8") as file:
+    config_path = Path(config_name)
+    if not config_path.is_file():
+        config_path = CONFIG_DIR / config_name
+    with config_path.open("r", encoding="utf-8") as file:
         raw = yaml.safe_load(file)
 
     def path_value(name: str) -> Path:

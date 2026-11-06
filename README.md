@@ -239,21 +239,21 @@ flowchart TD
 
 ## 四、 📦 核心检查点资产与代码清单 (Artifacts)
 
-| 轮数 | 检查点路径 | JIT 导出策略 | 核心特性说明 |
+所有核心检查点与轻量 JIT 策略均已打包存放在 `deploy/pre_train/go2/` 目录下，并已同步上传至 GitHub：
+
+| 轮数 | 完整训练断点 (可直接 Resume) | JIT 部署策略 (MuJoCo/C++ 推理) | 核心特性说明 |
 | :---: | :--- | :--- | :--- |
-| **25200** | `logs/rsl_rl/go2_moe_cts/..._rough_stairs_resume_24800/model_25200.pt` | `.../exported_25200/policy.pt` | 🚀 **越野冲楼爆发冠军**：前腿提膝 >20cm，第 1 阶跨越仅 0.43s，总登顶仅 2.02s，轻盈弹射冲破 15cm 台阶！ |
-| **25600** | `logs/rsl_rl/go2_moe_cts/..._rough_stairs_resume_24800/model_25600.pt` | `.../exported/policy.pt` | 🏆 **全能六边形战士**：直行 Roll 抖动 0.54°，满舵自转 +0.74 rad/s，15cm 台阶 100% 稳破（2.42s 登顶）！ |
-| **24800** | `logs/rsl_rl/go2_moe_cts/2026-10-30_12-04-11_2026-10-30_12-04-05_official_pure_spin_resume_24000/model_24800.pt` | `.../exported/policy_24800_champion.pt` | 🥇 **官方纯净物理机制平地金牌模型**：零人工伪奖励，直行 Roll 抖动 0.50°，满舵自转 1.42 rad/s，四足小跑对角高度对称 |
-| **25000** | `logs/rsl_rl/go2_moe_cts/2026-10-30_12-04-11_2026-10-30_12-04-05_official_pure_spin_resume_24000/model_25000.pt` | `.../exported/policy_25000.pt` | 官方纯净微调终局模型，中低速自转轻盈敏捷，复合全向机动性强 |
-| **24000** | `logs/rsl_rl/go2_moe_cts/2026-10-27_22-54-37_scheme_a_mild_terrain_resume_23000/model_24000.pt` | `.../exported/policy.pt` | 15cm 极限台阶 100% 稳健踏破的黄金纯净基线模型 |
-| **28200** | `logs/rsl_rl/go2_moe_cts/2026-10-29_21-56-08_scheme_a_anti_stall_spin_resume_28000/model_28200.pt` | `.../exported/policy_28200_champion.pt` | Phase 6 物理防死锁版本（人工雕刻对照组，自转极快但存在单腿高踢反噬隐患） |
-| **15500** | `logs/rsl_rl/go2_moe_cts/2026-10-26_20-24-01_pure_scratch_flat_smooth_1500/model_15500.pt` | `.../exported/policy.pt` | 平地极致平滑巡航模型 (Roll 方差 1.40°) |
+| **25600** | `deploy/pre_train/go2/model_25600.pt` | `deploy/pre_train/go2/go2_moe_cts_25600_allround_champion.pt` | 🏆 **全能六边形战士**：直行 Roll 抖动 0.54°，满舵自转 +0.74 rad/s，15cm 台阶 100% 稳破（2.42s 登顶）！可直接用于 Resume 微调与部署 |
+| **25200** | `deploy/pre_train/go2/model_25200.pt` | `deploy/pre_train/go2/go2_moe_cts_25200_stairs_champion.pt` | 🚀 **越野冲楼爆发冠军**：前腿提膝 >20cm，第 1 阶跨越仅 0.43s，总登顶仅 2.02s，轻盈弹射冲破 15cm 台阶！可直接用于 Resume 微调与部署 |
+| **24800** | `deploy/pre_train/go2/model_24800.pt` | `deploy/pre_train/go2/go2_moe_cts_24800_champion.pt` | 🥇 **官方纯净物理机制平地金牌模型**：零人工伪奖励，直行 Roll 抖动 0.50°，满舵自转 1.42 rad/s，四足小跑对角高度对称 |
+| **176k** | *官方发布基线* | `deploy/pre_train/go2/go2_moe_cts_176k_0.6984.pt` (含 .onnx) | 官方原始发布 CTS 策略与 ONNX 部署模型，用作对标 Benchmark |
 
 ---
 
 ## 五、 🎮 MuJoCo C++ 桌面交互控制器操作规范 (键盘映射指南)
 
-部署二进制程序：`/home/rum/robot_lab/tool/deploy_mujoco_cpp/build/mujoco_deploy_go2`
+> [!NOTE]
+> 本节按键映射针对本地编译的高帧率 C++ 交互控制器（位于 `tool/deploy_mujoco_cpp`）。如需在跨机器环境下快速验证，亦可直接使用下一节的全自包含 Python 部署套件。
 
 | 按键 | 控制动作 | 指令步长与安全限幅 | 状态与说明 |
 | :---: | :--- | :--- | :--- |
@@ -273,23 +273,39 @@ flowchart TD
 
 ## 六、 🚀 快速验证与一键部署 (Quick Start)
 
-### 1. 一键拉起 500 Hz MuJoCo 真实物理视窗 (最新自研模型)
-```bash
-# 启动 24800 轮官方纯净机制金牌交互视窗 (默认巡航 vx=1.0 m/s，闭环航向锁开启，直行零偏漂，自转轻盈丝滑)
-bash /home/rum/tool/run_go2_scratch_mujoco.sh
+### 1. MuJoCo Python 开箱即用物理视窗与 15cm 大台阶验证
+仓库内已预置所有轻量 JIT 部署策略与自包含 MuJoCo 物理场景（含平地 `flat.xml` 与 15cm 5 阶楼梯 `scene_stairs_5steps_15cm.xml`），任何新机器克隆后零外部依赖即可开箱即跑：
 
-# 自定义巡航速度启动 (如: 前向 1.0 m/s, 侧移 0.0 m/s, 自转 0.6 rad/s)
-bash /home/rum/tool/run_go2_scratch_mujoco.sh 1.0 "" 0.0 0.6
+```bash
+# 1) 平地巡航验证 (默认加载平地场景)
+python deploy/deploy_mujoco/deploy_go2.py
+
+# 2) 15cm 5 级越野大台阶弹射攀爬验证 (一键拉起 25200 冲楼冠军模型与 15cm 台阶物理场景)
+python deploy/deploy_mujoco/deploy_go2.py --config go2_stairs_15cm.yaml
+
+# 3) 25600 全能兼顾冠军模型在 15cm 台阶场景验证
+python deploy/deploy_mujoco/deploy_go2.py --config go2_stairs_15cm.yaml --policy deploy/pre_train/go2/go2_moe_cts_25600_allround_champion.pt
+
+# 4) 24800 平地金牌模型平地巡航与满舵自转验证
+python deploy/deploy_mujoco/deploy_go2.py --config go2.yaml --policy deploy/pre_train/go2/go2_moe_cts_24800_champion.pt
 ```
 
-### 2. 官方模型对标视窗
+### 2. IsaacLab 强化学习训练与断点微调 (Training & Resuming)
+本仓库所有 URDF/Mesh 资源全部使用相对路径自动寻址，在新机器克隆后可直接启动：
+
 ```bash
-# 一键拉起官方 176k 成熟模型视窗进行实时对比
-bash /home/rum/tool/run_go2_official_mujoco.sh 1.0 "" 0.0 0.6
+# 1) 从零开始训练温和地形强化学习策略
+python scripts/rsl_rl/train.py --task RobotLab-Go2-Mild-Terrain-v0 --num_envs 2048
+
+# 2) 基于 24800 纯净机制金牌底座继续微调
+python scripts/rsl_rl/train.py --task RobotLab-Go2-Mild-Terrain-v0 --resume --checkpoint deploy/pre_train/go2/model_24800.pt
+
+# 3) 基于 25200 / 25600 越野大台阶模型继续拓展训练
+python scripts/rsl_rl/train.py --task RobotLab-Go2-Mild-Terrain-v0 --resume --checkpoint deploy/pre_train/go2/model_25600.pt
 ```
 
-### 3. 500 Hz 自动化遥测对比脚本
+### 3. IsaacLab 策略回放与推理 (Play)
 ```bash
-# 运行触地率、四足重叠率与自转全速域频谱自动化评测
-/home/rum/env_isaaclab/bin/python /home/rum/.gemini/antigravity/brain/41eb1c59-a8d4-4496-91ff-55be41e8978a/scratch/compare_official_vs_our.py
+# 在 IsaacLab 物理引擎中直接回放指定检查点
+python scripts/rsl_rl/play.py --task RobotLab-Go2-Mild-Terrain-v0 --checkpoint deploy/pre_train/go2/model_25600.pt
 ```

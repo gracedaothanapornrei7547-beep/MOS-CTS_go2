@@ -7,11 +7,10 @@ exported policy manages internal observation history for CTS inference.
 
 Quick Start:
     python deploy/deploy_mujoco/deploy_go2.py
-
-Notes:
-    This script currently uses CONFIG_NAME = "go2.yaml" and does not expose CLI flags.
+    python deploy/deploy_mujoco/deploy_go2.py --config go2_stairs_15cm.yaml
 """
 
+import argparse
 import time
 from pathlib import Path
 
@@ -95,9 +94,38 @@ def build_single_obs(features: dict[str, np.ndarray], layout: list[tuple[str, in
     return np.concatenate([features[name] for name, _ in layout], axis=0).astype(np.float32, copy=False)
 
 
-def main() -> None:
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run CTS Go2 policy deployment in MuJoCo.")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=CONFIG_NAME,
+        help=f"Config filename in configs/ or path to yaml config (default: {CONFIG_NAME})",
+    )
+    parser.add_argument(
+        "--policy",
+        type=str,
+        default=None,
+        help="Optional override path to policy.pt TorchScript model",
+    )
+    parser.add_argument(
+        "--xml",
+        type=str,
+        default=None,
+        help="Optional override path to MuJoCo scene XML",
+    )
+    return parser.parse_args()
+
+
+def main(args=None) -> None:
     """Run MuJoCo simulation and deploy the CTS policy in closed-loop control."""
-    cfg = load_config(CONFIG_NAME)
+    if args is None:
+        args = parse_args()
+    cfg = load_config(args.config)
+    if args.policy is not None:
+        cfg.policy_path = Path(args.policy)
+    if args.xml is not None:
+        cfg.xml_path = Path(args.xml)
     layout = [
         ("ang_vel", 3),
         ("gravity", 3),
